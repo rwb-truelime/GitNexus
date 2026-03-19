@@ -1,0 +1,31 @@
+# GitNexus Caddyfile
+# Single entry point: serves web-ui static files and proxies API to backend
+{
+	# Disable automatic HTTPS (local dev only)
+	auto_https off
+}
+
+:8080 {
+	# Required headers for WASM SharedArrayBuffer (LadybugDB in browser)
+	header {
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Embedder-Policy "require-corp"
+	}
+
+	# Proxy API requests to the backend service
+	handle /api/* {
+		reverse_proxy backend:4747
+	}
+
+	# Serve web-ui static files
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Logs
+	log {
+		output stdout
+	}
+}

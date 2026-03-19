@@ -1,21 +1,62 @@
+# Git
 .git
 .gitignore
 .DS_Store
 
+# IDE / editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Node modules (each stage installs its own)
+gitnexus/node_modules
+gitnexus-web/node_modules
+gitnexus-claude-plugin/node_modules
+gitnexus-cursor-integration/node_modules
+gitnexus-test-setup/node_modules
 node_modules
 **/node_modules
 
+# GitNexus index data
+.gitnexus
+*/.gitnexus
+
+# Build artifacts (will be rebuilt in container)
+gitnexus/dist
 dist
 **/dist
 coverage
 **/coverage
+**/*.tsbuildinfo
 
+# Environment files
 .env
 .env.local
 .env.*.local
 
-**/*.tsbuildinfo
-
-.gitnexus
+# Test fixtures and eval data
+gitnexus/test
 gitnexus-web/playwright-report
 gitnexus-web/test-results
+eval
+
+# Docs and metadata
+*.md
+!gitnexus/README.md
+LICENSE
+skills.mdm
+type-resolution-roadmap.md
+type-resolution-system.md
+compound-engineering.local.md
+
+# Claude/Cursor integration (not needed for Docker)
+gitnexus-claude-plugin
+gitnexus-cursor-integration
+gitnexus-test-setup
+.claude
+.claude-plugin
+.sisyphus
+.cursorrules
+.windsurfrules
+.mcp.json

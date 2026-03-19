@@ -1,0 +1,104 @@
+# GitNexus Docker Compose
+# Runs the backend API + web-ui behind a Caddy reverse proxy
+#
+# Usage:
+#   docker compose up -d          # Start services
+#   docker compose down           # Stop services
+#   docker compose logs -f        # Follow logs
+#
+# Access web UI at: http://localhost:8080
+#
+# How it works:
+#   - Repos are mounted read-only into the backend container.
+#   - Each repo's .gitnexus/ index is exposed via OverlayFS: the host directory
+#     is the read-only lower layer, and a tmpfs is the writable upper layer.
+#     LadybugDB WAL/lock files go to tmpfs; the host files are never modified.
+#   - When you run `gitnexus analyze` on the host, the updated lbug file is
+#     visible through the overlay immediately. Restart the backend container
+#     to pick up the new data (the DB connection pool caches open handles):
+#       docker compose restart backend
+#
+# Adding repos:
+#   1. Add a volume mount under backend.volumes (read-only)
+#   2. Run `gitnexus analyze` on the host to create the .gitnexus/ index
+#   3. Restart: docker compose restart backend
+
+services:
+  # ---------------------------------------------------------------------------
+  # Backend: GitNexus API server
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: gitnexus/backend
+    container_name: gitnexus-backend
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN    # Required for OverlayFS mounts in entrypoint
+    volumes:
+      # -----------------------------------------------------------------------
+      # Mount your local git repos here (read-only)
+      # The entrypoint creates OverlayFS mounts for each repo's .gitnexus/ dir:
+      #   lower (read-only):  /repos/<name>/.gitnexus  (host files)
+      #   upper (writable):   tmpfs  (WAL/lock files go here)
+      #   merged:             /repos-data/<name>  (what the backend uses)
+      #
+      # Run `gitnexus analyze` on the host to create/update indexes.
+      # Add/remove repos as needed:
+      # -----------------------------------------------------------------------
+      - /home/rodger/truelime-git-projects/AAA-app:/repos/AAA-app:ro
+      # - /home/rodger/personal-github-projects/some-project:/repos/some-project:ro
+    networks:
+      - gitnexus
+
+  # ---------------------------------------------------------------------------
+  # Caddy: Reverse proxy + static file server for web-ui
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: gitnexus-caddy
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Serve web-ui static files directly from the backend image
+      - web-ui:/srv/web:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - backend
+      - web-init
+    networks:
+      - gitnexus
+
+  # ---------------------------------------------------------------------------
+  # Init: Copy web-ui static files to shared volume (runs once)
+  # ---------------------------------------------------------------------------
+  web-init:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: gitnexus/web-init
+    container_name: gitnexus-web-init
+    user: root
+    entrypoint: ["/bin/sh", "-c", "cp -r /srv/web/* /out/ && echo 'Web UI files copied.'"]
+    volumes:
+      - web-ui:/out
+    restart: "no"
+
+volumes:
+  # Built web-ui static files — shared between web-init and caddy
+  web-ui:
+    driver: local
+
+  # Caddy internal data
+  caddy-data:
+    driver: local
+  caddy-config:
+    driver: local
+
+networks:
+  gitnexus:
+    driver: bridge
