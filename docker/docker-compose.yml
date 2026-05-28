@@ -47,7 +47,9 @@ services:
       # Run `gitnexus analyze` on the host to create/update indexes.
       # Add/remove repos as needed:
       # -----------------------------------------------------------------------
-      - /home/rodger/truelime-git-projects/AAA-app:/repos/AAA-app:ro
+      - /home/rodger/truelime-git-projects/octopus_web:/repos/octopus_web:ro
+      - /home/rodger/truelime-git-projects/octopus_core:/repos/octopus_core:ro
+      # - /home/rodger/truelime-git-projects/AAA-app:/repos/AAA-app:ro
       # - /home/rodger/personal-github-projects/some-project:/repos/some-project:ro
     networks:
       - gitnexus

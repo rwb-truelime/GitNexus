@@ -10,6 +10,18 @@ FROM node:22-trixie AS web-builder
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
+WORKDIR /build
+
+# gitnexus-web depends on gitnexus-shared via file:../gitnexus-shared.
+# Build it first so TypeScript can resolve the package's dist declarations.
+COPY gitnexus-shared/package.json gitnexus-shared/package-lock.json* ./gitnexus-shared/
+RUN npm ci --prefix gitnexus-shared
+COPY gitnexus-shared/ ./gitnexus-shared/
+RUN npm run build --prefix gitnexus-shared
+
+# vite.config.ts reads the backend package.json for the required Node version.
+COPY gitnexus/package.json ./gitnexus/package.json
+
 WORKDIR /build/gitnexus-web
 COPY gitnexus-web/package.json gitnexus-web/pnpm-lock.yaml* gitnexus-web/package-lock.json* ./
 
@@ -42,6 +54,14 @@ RUN apt-get update && apt-get install -y \
     g++ \
     git \
     && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# gitnexus depends on gitnexus-shared via file:../gitnexus-shared.
+COPY gitnexus-shared/package.json gitnexus-shared/package-lock.json* ./gitnexus-shared/
+RUN npm ci --prefix gitnexus-shared
+COPY gitnexus-shared/ ./gitnexus-shared/
+RUN npm run build --prefix gitnexus-shared
 
 WORKDIR /build/gitnexus
 COPY gitnexus/package.json gitnexus/package-lock.json* ./
